@@ -6,7 +6,10 @@ import math
 from modeling_siglip import SiglipVisionConfig, SiglipVisionModel
 
 class KVCache():
-
+    """ 
+    used to store the last Key value to not redo all previous previous tokens calculations again
+    
+    """
     def __init__(self) -> None:
         self.key_cache: List[torch.Tensor] = []
         self.value_cache: List[torch.Tensor] = []
@@ -15,7 +18,7 @@ class KVCache():
         if len(self.key_cache) == 0:
             return 0
         else:
-            # The shape of the key_cache is [Batch_Size, Num_Heads_KV, Seq_Len, Head_Dim]
+            
             return self.key_cache[0].shape[-2]
 
     def update(
@@ -116,8 +119,6 @@ class GemmaRMSNorm(nn.Module):
 
     def forward(self, x):
         output = self._norm(x.float())
-        # Llama does x.to(float16) * w whilst Gemma is (x * w).to(float16)
-        # See https://github.com/huggingface/transformers/pull/29402
         output = output * (1.0 + self.weight.float())
         return output.type_as(x)
 
@@ -125,7 +126,7 @@ class GemmaRotaryEmbedding(nn.Module):
     def __init__(self, dim, max_position_embeddings=2048, base=10000, device=None):
         super().__init__()
 
-        self.dim = dim # it is set to the head_dim
+        self.dim = dim #head dim
         self.max_position_embeddings = max_position_embeddings
         self.base = base
 
@@ -183,8 +184,14 @@ class GemmaMLP(nn.Module):
         self.down_proj = nn.Linear(self.intermediate_size, self.hidden_size, bias=False)
 
     def forward(self, x):
+        # gelu was found to be more effective than ReLU for smoother gradients 
+        # and better performance in large language models (LLMs).
+        # The gated mechanism (gate_proj * up_proj) allows adaptive control 
+        # of information flow before projecting back to the hidden dimension.
+        return self.down_proj(
+            nn.functional.gelu(self.gate_proj(x), approximate="tanh") * self.up_proj(x)
+        )
 
-        return self.down_proj(nn.functional.gelu(self.gate_proj(x), approximate="tanh") * self.up_proj(x))
 
 def repeat_kv(hidden_states: torch.Tensor, n_rep: int) -> torch.Tensor:
     batch, num_key_value_heads, slen, head_dim = hidden_states.shape
