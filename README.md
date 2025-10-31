@@ -1,4 +1,4 @@
-# Siglip-VLM
+# PaliGemma-VLM
 
 Siglip-VLM (Vision-Language Model) is an end-to-end implementation of a multimodal transformer architecture that integrates both **vision** and **language understanding**.  
 This repository contains a full reimplementation of the model’s core components from scratch, including all major building blocks required for training and inference.
@@ -36,5 +36,6 @@ The goal of this project is to **understand and replicate the internals of moder
 ---
 
 Would you like me to make this sound more **research-style (paper-like)** or **developer-friendly (for GitHub README)**?
+
 
 
